@@ -12,6 +12,7 @@ All notable changes to the OBJ2POV project will be documented in this file.
 - Automatic camera positioning and FOV calculation
 - Custom image dimensions support (-W, -H command-line options)
 - Zero-length normal vector fix for POV-Ray compatibility
+- Progress bars for large files using tqdm library
 - Comprehensive documentation and examples
 - Windows batch script for easy conversion
 - Square pixel aspect ratio support
@@ -31,8 +32,9 @@ All notable changes to the OBJ2POV project will be documented in this file.
 
 ### Technical Details
 - Python 3.6+ compatible
-- No external dependencies (uses only standard library)
+- External dependency: tqdm for progress bars
 - Supports both ASCII and binary STL parsing
 - Handles vertex deduplication for STL files
 - Proper UV vector format for POV-Ray
 - Complete mesh2 object structure with all required sections
+- Progress bars for files with >1000 lines/triangles/vertices

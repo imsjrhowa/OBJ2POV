@@ -12,17 +12,19 @@ A Python tool that converts Wavefront OBJ and STL files to POV-Ray format for us
 - ✅ Command-line interface with options
 - ✅ Error handling and validation
 - ✅ Verbose output mode
+- ✅ Progress bars for large files (using tqdm)
 
 ## Requirements
 
 - Python 3.6 or higher
-- No external dependencies (uses only standard library)
+- External dependencies: `tqdm` (for progress bars)
 
 ## Installation
 
 1. Clone or download this repository
 2. Make sure Python 3.6+ is installed
-3. The script is ready to use - no additional installation required
+3. Install dependencies: `pip install -r requirements.txt`
+4. The script is ready to use
 
 ## Usage
 
@@ -59,7 +61,7 @@ python obj2pov.py -h
 - `input_file`: Input OBJ or STL file (required)
 - `-o, --output`: Output POV file (default: input_file.pov)
 - `--no-materials`: Skip material definitions
-- `-v, --verbose`: Verbose output showing parsing statistics
+- `-v, --verbose`: Verbose output showing parsing statistics and progress bars
 - `-W, --width`: Image width for POV-Ray rendering (default: 800)
 - `-H, --height`: Image height for POV-Ray rendering (default: 600)
 - `-h, --help`: Show help message
@@ -192,6 +194,21 @@ povray +W1920 +H1080 samples/example_cube_ascii.pov
 ```
 
 **Important:** The generated POV-Ray files include the correct render command in the comments. Use the same dimensions that were specified with `-W` and `-H` options to maintain proper aspect ratio and prevent stretching.
+
+## Progress Bars
+
+When using the `-v` (verbose) option, the converter shows progress bars for large files:
+
+- **OBJ files**: Progress bar appears for files with >1000 lines
+- **STL files**: Progress bar appears for files with >1000 triangles
+- **POV generation**: Progress bars for files with >10,000 vertices or normals
+
+Example output:
+```
+Parsing STL file: large_model.stl
+Parsing ASCII STL: 100%|████████████| 50000/50000 [00:02<00:00, 25000.00lines/s]
+Writing vertices: 100%|████████████| 25000/25000 [00:01<00:00, 25000.00vertices/s]
+```
 
 ## Contributing
 

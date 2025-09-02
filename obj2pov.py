@@ -12,6 +12,7 @@ import sys
 import struct
 from typing import List, Tuple, Optional, Dict, Any
 import re
+from tqdm import tqdm
 
 
 class OBJParser:
@@ -27,12 +28,25 @@ class OBJParser:
         self.objects: List[str] = []
         self.current_object: Optional[str] = None
         
-    def parse_file(self, filename: str) -> None:
+    def parse_file(self, filename: str, show_progress: bool = True) -> None:
         """Parse an OBJ file."""
         try:
+            # First pass: count lines for progress bar
+            total_lines = 0
+            if show_progress:
+                with open(filename, 'r', encoding='utf-8') as f:
+                    total_lines = sum(1 for _ in f)
+            
+            # Second pass: parse with progress bar
             with open(filename, 'r', encoding='utf-8') as f:
-                for line_num, line in enumerate(f, 1):
+                if show_progress and total_lines > 1000:  # Only show progress for large files
+                    progress_bar = tqdm(f, total=total_lines, desc="Parsing OBJ", unit="lines")
+                else:
+                    progress_bar = f
+                
+                for line_num, line in enumerate(progress_bar, 1):
                     self._parse_line(line.strip(), line_num)
+                    
         except FileNotFoundError:
             raise FileNotFoundError(f"File not found: {filename}")
         except Exception as e:
@@ -101,7 +115,7 @@ class STLParser:
         self.vertex_map: Dict[Tuple[float, float, float], int] = {}
         self.vertex_count = 0
         
-    def parse_file(self, filename: str) -> None:
+    def parse_file(self, filename: str, show_progress: bool = True) -> None:
         """Parse an STL file (both ASCII and binary formats)."""
         try:
             with open(filename, 'rb') as f:
@@ -111,16 +125,16 @@ class STLParser:
                 
                 # Check if it's ASCII STL (starts with "solid")
                 if header.startswith(b'solid'):
-                    self._parse_ascii_stl(f)
+                    self._parse_ascii_stl(f, show_progress)
                 else:
-                    self._parse_binary_stl(f)
+                    self._parse_binary_stl(f, show_progress)
                     
         except FileNotFoundError:
             raise FileNotFoundError(f"File not found: {filename}")
         except Exception as e:
             raise Exception(f"Error parsing STL file {filename}: {e}")
     
-    def _parse_ascii_stl(self, f) -> None:
+    def _parse_ascii_stl(self, f, show_progress: bool = True) -> None:
         """Parse ASCII STL format."""
         content = f.read().decode('utf-8', errors='ignore')
         lines = content.split('\n')
@@ -128,7 +142,18 @@ class STLParser:
         current_vertices = []
         current_normal = None
         
-        for line in lines:
+        # Count facets for progress bar
+        facet_count = 0
+        if show_progress:
+            facet_count = content.count('facet normal')
+        
+        # Use progress bar for large files
+        if show_progress and facet_count > 1000:
+            lines_iter = tqdm(lines, desc="Parsing ASCII STL", unit="lines")
+        else:
+            lines_iter = lines
+        
+        for line in lines_iter:
             line = line.strip()
             parts = line.split()
             
@@ -161,7 +186,7 @@ class STLParser:
                 current_vertices = []
                 current_normal = None
     
-    def _parse_binary_stl(self, f) -> None:
+    def _parse_binary_stl(self, f, show_progress: bool = True) -> None:
         """Parse binary STL format."""
         # Skip header (80 bytes)
         f.seek(80)
@@ -169,7 +194,13 @@ class STLParser:
         # Read number of triangles (4 bytes, little-endian unsigned int)
         num_triangles = struct.unpack('<I', f.read(4))[0]
         
-        for _ in range(num_triangles):
+        # Use progress bar for large files
+        if show_progress and num_triangles > 1000:
+            triangle_iter = tqdm(range(num_triangles), desc="Parsing Binary STL", unit="triangles")
+        else:
+            triangle_iter = range(num_triangles)
+        
+        for _ in triangle_iter:
             # Read normal vector (3 floats, 4 bytes each)
             normal_data = f.read(12)
             nx, ny, nz = struct.unpack('<fff', normal_data)
@@ -211,7 +242,7 @@ class POVGenerator:
         self.image_width = image_width
         self.image_height = image_height
         
-    def generate_pov(self, output_filename: str, include_materials: bool = True) -> None:
+    def generate_pov(self, output_filename: str, include_materials: bool = True, show_progress: bool = True) -> None:
         """Generate POV-Ray file from parsed OBJ data."""
         with open(output_filename, 'w', encoding='utf-8') as f:
             self._write_header(f)
@@ -219,7 +250,7 @@ class POVGenerator:
             if include_materials:
                 self._write_materials(f)
                 
-            self._write_mesh(f)
+            self._write_mesh(f, show_progress)
             
             self._write_footer(f)
     
@@ -250,7 +281,7 @@ class POVGenerator:
         f.write("    pigment { color rgb <0.8, 0.8, 0.8> }\n")
         f.write("}\n\n")
         
-    def _write_mesh(self, f) -> None:
+    def _write_mesh(self, f, show_progress: bool = True) -> None:
         """Write mesh2 object."""
         if not self.parser.vertices or not self.parser.faces:
             f.write("// No geometry found in OBJ file\n")
@@ -262,7 +293,15 @@ class POVGenerator:
         # Write vertex vectors
         f.write("    vertex_vectors {\n")
         f.write(f"        {len(self.parser.vertices)},\n")
-        for i, (x, y, z) in enumerate(self.parser.vertices):
+        
+        # Use progress bar for large vertex counts
+        if show_progress and len(self.parser.vertices) > 10000:
+            vertex_iter = tqdm(enumerate(self.parser.vertices), total=len(self.parser.vertices), 
+                             desc="Writing vertices", unit="vertices", leave=False)
+        else:
+            vertex_iter = enumerate(self.parser.vertices)
+            
+        for i, (x, y, z) in vertex_iter:
             f.write(f"        <{x:.6f}, {y:.6f}, {z:.6f}>")
             if i < len(self.parser.vertices) - 1:
                 f.write(",")
@@ -273,7 +312,15 @@ class POVGenerator:
         if self.parser.normals:
             f.write("    normal_vectors {\n")
             f.write(f"        {len(self.parser.normals)},\n")
-            for i, (x, y, z) in enumerate(self.parser.normals):
+            
+            # Use progress bar for large normal counts
+            if show_progress and len(self.parser.normals) > 10000:
+                normal_iter = tqdm(enumerate(self.parser.normals), total=len(self.parser.normals), 
+                                 desc="Writing normals", unit="normals", leave=False)
+            else:
+                normal_iter = enumerate(self.parser.normals)
+                
+            for i, (x, y, z) in normal_iter:
                 # POV-Ray doesn't allow zero-length normals, use <1, 0, 0> as default
                 if x == 0.0 and y == 0.0 and z == 0.0:
                     x, y, z = 1.0, 0.0, 0.0
@@ -521,13 +568,13 @@ Examples:
             if args.verbose:
                 print(f"Parsing OBJ file: {args.input_file}")
             parser = OBJParser()
-            parser.parse_file(args.input_file)
+            parser.parse_file(args.input_file, show_progress=args.verbose)
             
         elif file_ext == '.stl':
             if args.verbose:
                 print(f"Parsing STL file: {args.input_file}")
             parser = STLParser()
-            parser.parse_file(args.input_file)
+            parser.parse_file(args.input_file, show_progress=args.verbose)
             
         else:
             print(f"Error: Unsupported file format '{file_ext}'. Supported formats: .obj, .stl", file=sys.stderr)
@@ -542,7 +589,7 @@ Examples:
         
         # Generate POV-Ray file
         pov_generator = POVGenerator(parser, args.width, args.height)
-        pov_generator.generate_pov(output_file, include_materials=not args.no_materials)
+        pov_generator.generate_pov(output_file, include_materials=not args.no_materials, show_progress=args.verbose)
         
         print(f"Successfully converted '{args.input_file}' to '{output_file}'")
         

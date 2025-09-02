@@ -1,13 +1,13 @@
 # OBJ2POV Converter Requirements
-# This tool uses only Python standard library modules
-# No external dependencies required
-
 # Python 3.6 or higher is required
+
+# External dependencies
+tqdm>=4.64.0
+
 # Standard library modules used:
 # - argparse (command line parsing)
 # - os (file system operations)
 # - sys (system operations)
 # - re (regular expressions)
 # - typing (type hints)
-
-# No pip install required - just run with Python 3.6+
+# - struct (binary data parsing)
