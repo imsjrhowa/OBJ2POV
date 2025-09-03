@@ -14,6 +14,7 @@ All notable changes to the OBJ2POV project will be documented in this file.
 - Zero-length normal vector fix for POV-Ray compatibility
 - Progress bars for large files using tqdm library
 - X coordinate flip option (--flip-x) to fix mirrored text/geometry
+- Default bronze texture with metallic finish and realistic surface properties
 - Comprehensive documentation and examples
 - Windows batch script for easy conversion
 - Square pixel aspect ratio support

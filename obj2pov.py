@@ -269,17 +269,35 @@ class POVGenerator:
         f.write("    assumed_gamma 1.0\n")
         f.write("}\n\n")
         
+        # Write default bronze texture
+        self._write_default_texture(f)
+        
+    def _write_default_texture(self, f) -> None:
+        """Write default bronze texture definition."""
+        f.write("// Default bronze texture\n")
+        f.write("#declare BronzeTexture = texture {\n")
+        f.write("    pigment {\n")
+        f.write("        color rgb <0.8, 0.5, 0.2>\n")
+        f.write("    }\n")
+        f.write("    normal {\n")
+        f.write("        bumps 0.3\n")
+        f.write("        scale 0.1\n")
+        f.write("    }\n")
+        f.write("    finish {\n")
+        f.write("        ambient 0.1\n")
+        f.write("        diffuse 0.7\n")
+        f.write("        specular 0.4\n")
+        f.write("        roughness 0.05\n")
+        f.write("        reflection 0.3\n")
+        f.write("        metallic\n")
+        f.write("    }\n")
+        f.write("}\n\n")
+        
     def _write_materials(self, f) -> None:
         """Write material definitions."""
         f.write("// Material definitions\n")
         f.write("#default {\n")
-        f.write("    finish {\n")
-        f.write("        ambient 0.1\n")
-        f.write("        diffuse 0.7\n")
-        f.write("        specular 0.2\n")
-        f.write("        roughness 0.1\n")
-        f.write("    }\n")
-        f.write("    pigment { color rgb <0.8, 0.8, 0.8> }\n")
+        f.write("    texture { BronzeTexture }\n")
         f.write("}\n\n")
         
     def _write_mesh(self, f, show_progress: bool = True) -> None:

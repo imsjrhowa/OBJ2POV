@@ -60,7 +60,7 @@ python obj2pov.py -h
 
 - `input_file`: Input OBJ or STL file (required)
 - `-o, --output`: Output POV file (default: input_file.pov)
-- `--no-materials`: Skip material definitions
+- `--no-materials`: Skip material definitions (removes default bronze texture)
 - `-v, --verbose`: Verbose output showing parsing statistics and progress bars
 - `-W, --width`: Image width for POV-Ray rendering (default: 800)
 - `-H, --height`: Image height for POV-Ray rendering (default: 600)
@@ -112,6 +112,16 @@ python obj2pov.py samples/example_cube_ascii.stl -W 1920 -H 1080
 # If text or geometry appears mirrored in the render, use --flip-x
 python obj2pov.py model.stl --flip-x
 python obj2pov.py model.obj --flip-x -W 1024 -H 768
+```
+
+### Example 6: Generate with default bronze texture
+
+```bash
+# Default conversion includes beautiful bronze texture
+python obj2pov.py samples/example_cube_ascii.stl
+
+# Generate without materials (for custom texturing)
+python obj2pov.py samples/example_cube_ascii.stl --no-materials
 ```
 
 ## File Format Support
@@ -249,6 +259,32 @@ This will:
 - Text appears backwards in the render
 - Geometry looks mirrored
 - The model appears to be facing the wrong direction
+
+## Default Bronze Texture
+
+The converter automatically includes a beautiful bronze metal texture for all objects:
+
+### **Features:**
+- **Realistic bronze appearance** with warm, metallic coloring
+- **Metallic finish** with proper reflection and specular properties
+- **Subtle surface texture** with bump mapping for realistic depth
+- **Professional look** perfect for statues, sculptures, and architectural elements
+
+### **Texture Properties:**
+- **Base color**: Rich bronze (RGB: 0.8, 0.5, 0.2) - warm golden-brown
+- **Surface**: Metallic finish with 30% reflection
+- **Texture**: Subtle bumps for realistic metal surface
+- **Lighting**: Optimized specular highlights and diffuse properties
+
+### **Customization:**
+If you want to use your own materials instead of the default bronze texture, use the `--no-materials` option:
+
+```bash
+# Generate without default bronze texture
+python obj2pov.py model.stl --no-materials
+```
+
+This will create a POV file with basic material properties that you can customize manually.
 
 ## Contributing
 
