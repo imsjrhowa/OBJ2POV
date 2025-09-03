@@ -237,10 +237,11 @@ class STLParser:
 class POVGenerator:
     """Generator for POV-Ray files."""
     
-    def __init__(self, parser, image_width=800, image_height=600):
+    def __init__(self, parser, image_width=800, image_height=600, flip_x=False):
         self.parser = parser
         self.image_width = image_width
         self.image_height = image_height
+        self.flip_x = flip_x
         
     def generate_pov(self, output_filename: str, include_materials: bool = True, show_progress: bool = True) -> None:
         """Generate POV-Ray file from parsed OBJ data."""
@@ -302,6 +303,9 @@ class POVGenerator:
             vertex_iter = enumerate(self.parser.vertices)
             
         for i, (x, y, z) in vertex_iter:
+            # Apply X coordinate flip if requested
+            if self.flip_x:
+                x = -x
             f.write(f"        <{x:.6f}, {y:.6f}, {z:.6f}>")
             if i < len(self.parser.vertices) - 1:
                 f.write(",")
@@ -324,6 +328,9 @@ class POVGenerator:
                 # POV-Ray doesn't allow zero-length normals, use <1, 0, 0> as default
                 if x == 0.0 and y == 0.0 and z == 0.0:
                     x, y, z = 1.0, 0.0, 0.0
+                # Apply X coordinate flip to normals if requested
+                if self.flip_x:
+                    x = -x
                 f.write(f"        <{x:.6f}, {y:.6f}, {z:.6f}>")
                 if i < len(self.parser.normals) - 1:
                     f.write(",")
@@ -481,13 +488,17 @@ class POVGenerator:
             # Default setup if no vertices
             return (0, 0, -10), (0, 0, 0), 35.0, 15.0
         
-        # Calculate bounding box
-        min_x = min(v[0] for v in self.parser.vertices)
-        max_x = max(v[0] for v in self.parser.vertices)
-        min_y = min(v[1] for v in self.parser.vertices)
-        max_y = max(v[1] for v in self.parser.vertices)
-        min_z = min(v[2] for v in self.parser.vertices)
-        max_z = max(v[2] for v in self.parser.vertices)
+        # Calculate bounding box, applying X flip if requested
+        vertices_for_bounds = self.parser.vertices
+        if self.flip_x:
+            vertices_for_bounds = [(-v[0], v[1], v[2]) for v in self.parser.vertices]
+        
+        min_x = min(v[0] for v in vertices_for_bounds)
+        max_x = max(v[0] for v in vertices_for_bounds)
+        min_y = min(v[1] for v in vertices_for_bounds)
+        max_y = max(v[1] for v in vertices_for_bounds)
+        min_z = min(v[2] for v in vertices_for_bounds)
+        max_z = max(v[2] for v in vertices_for_bounds)
         
         # Calculate object center
         center_x = (min_x + max_x) / 2
@@ -561,6 +572,7 @@ Examples:
   python obj2pov.py model.stl --no-materials
   python obj2pov.py model.obj -W 1024 -H 768
   python obj2pov.py model.stl -W 1600 -H 1200
+  python obj2pov.py model.stl --flip-x
         """
     )
     
@@ -574,6 +586,8 @@ Examples:
                        help='Image width for POV-Ray rendering (default: 800)')
     parser.add_argument('-H', '--height', type=int, default=600,
                        help='Image height for POV-Ray rendering (default: 600)')
+    parser.add_argument('--flip-x', action='store_true',
+                       help='Flip X coordinates to fix mirrored text/geometry')
     
     args = parser.parse_args()
     
@@ -617,7 +631,7 @@ Examples:
                 print(f"Found {len(parser.texture_coords)} texture coordinates")
         
         # Generate POV-Ray file
-        pov_generator = POVGenerator(parser, args.width, args.height)
+        pov_generator = POVGenerator(parser, args.width, args.height, args.flip_x)
         pov_generator.generate_pov(output_file, include_materials=not args.no_materials, show_progress=args.verbose)
         
         print(f"Successfully converted '{args.input_file}' to '{output_file}'")

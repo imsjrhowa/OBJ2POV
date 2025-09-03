@@ -1,0 +1,19 @@
+---
+description: Prevent AI from automatically committing changes to git
+globs:
+alwaysApply: true
+---
+
+# Do Not Commit Changes to Git
+
+**IMPORTANT**: Do not automatically commit changes to git. Always ask the user before making any git commits.
+
+## Rules:
+- Never run `git add`, `git commit`, or `git push` commands without explicit user permission
+- When suggesting git operations, always ask the user first
+- If you need to stage files, ask the user if they want to commit the changes
+- Let the user control their own git workflow and commit messages
+
+## Exceptions:
+- Only run git commands if the user explicitly asks you to do so
+- You may suggest git commands but must wait for user confirmation before executing them

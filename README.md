@@ -64,6 +64,7 @@ python obj2pov.py -h
 - `-v, --verbose`: Verbose output showing parsing statistics and progress bars
 - `-W, --width`: Image width for POV-Ray rendering (default: 800)
 - `-H, --height`: Image height for POV-Ray rendering (default: 600)
+- `--flip-x`: Flip X coordinates to fix mirrored text/geometry
 - `-h, --help`: Show help message
 
 ## Examples
@@ -103,6 +104,14 @@ python obj2pov.py samples/example_cube_ascii.stl -W 1600 -H 1200
 
 # HD resolution (16:9 aspect ratio)
 python obj2pov.py samples/example_cube_ascii.stl -W 1920 -H 1080
+```
+
+### Example 5: Fix mirrored text/geometry
+
+```bash
+# If text or geometry appears mirrored in the render, use --flip-x
+python obj2pov.py model.stl --flip-x
+python obj2pov.py model.obj --flip-x -W 1024 -H 768
 ```
 
 ## File Format Support
@@ -217,6 +226,29 @@ Writing vertices: 100%|████████████| 25000/25000 [00:01<
 Writing normals: 100%|████████████| 25000/25000 [00:01<00:00, 25000.00normals/s]
 Writing face indices: 100%|████████████| 50000/50000 [00:02<00:00, 25000.00faces/s]
 ```
+
+## Coordinate System Issues
+
+### Mirrored Text/Geometry
+
+Sometimes when rendering STL or OBJ files, you may notice that text or geometry appears mirrored (backwards). This is due to differences in coordinate systems between the original 3D modeling software and POV-Ray.
+
+**Solution**: Use the `--flip-x` option to flip the X coordinates:
+
+```bash
+python obj2pov.py model.stl --flip-x
+```
+
+This will:
+- Flip all X coordinates (multiply by -1)
+- Flip normal X components to maintain proper lighting
+- Adjust camera positioning to keep the object centered
+- Fix mirrored text and geometry issues
+
+**When to use `--flip-x`:**
+- Text appears backwards in the render
+- Geometry looks mirrored
+- The model appears to be facing the wrong direction
 
 ## Contributing
 
