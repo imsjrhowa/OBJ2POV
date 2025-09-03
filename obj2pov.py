@@ -6,6 +6,8 @@ This tool converts Wavefront OBJ files to POV-Ray format.
 Supports vertices, faces, normals, texture coordinates, and materials.
 """
 
+__version__ = "1.0.0"
+
 import argparse
 import os
 import sys
@@ -580,7 +582,7 @@ class POVGenerator:
 def main():
     """Main function."""
     parser = argparse.ArgumentParser(
-        description="Convert OBJ and STL files to POV-Ray format",
+        description=f"Convert OBJ and STL files to POV-Ray format (v{__version__})",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -596,16 +598,12 @@ Examples:
     
     parser.add_argument('input_file', help='Input OBJ or STL file')
     parser.add_argument('-o', '--output', help='Output POV file (default: input_file.pov)')
-    parser.add_argument('--no-materials', action='store_true', 
-                       help='Skip material definitions')
-    parser.add_argument('-v', '--verbose', action='store_true',
-                       help='Verbose output')
-    parser.add_argument('-W', '--width', type=int, default=800,
-                       help='Image width for POV-Ray rendering (default: 800)')
-    parser.add_argument('-H', '--height', type=int, default=600,
-                       help='Image height for POV-Ray rendering (default: 600)')
-    parser.add_argument('--flip-x', action='store_true',
-                       help='Flip X coordinates to fix mirrored text/geometry')
+    parser.add_argument('--no-materials', action='store_true', help='Skip material definitions')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
+    parser.add_argument('-W', '--width', type=int, default=800, help='Image width for POV-Ray rendering (default: 800)')
+    parser.add_argument('-H', '--height', type=int, default=600, help='Image height for POV-Ray rendering (default: 600)')
+    parser.add_argument('--flip-x', action='store_true', help='Flip X coordinates')
+    parser.add_argument('--version', action='version', version=f'OBJ2POV {__version__}')
     
     args = parser.parse_args()
     
