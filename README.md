@@ -300,3 +300,10 @@ For more advanced OBJ to POV-Ray conversion, you might also consider:
 - [PoseRay](https://www.povray.org/resources/links/3d_programs/Conversion_Utilities/)
 - [Obj2Pov by Joss Whittle](https://github.com/JossWhittle/Obj2Pov)
 - [Wavefront_To_Pov](https://github.com/NeuralCortex/Wavefront_To_Pov)
+
+
+## Command line rendering Example
+```bash
+# Render input.pov with povray 3.7
+pvengine64.exe /RENDER "C:\path\to\pov\input.pov" /EXIT -D +FN +W1200 +H1200 +WT4
+```
