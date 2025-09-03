@@ -334,7 +334,15 @@ class POVGenerator:
         if self.parser.texture_coords:
             f.write("    uv_vectors {\n")
             f.write(f"        {len(self.parser.texture_coords)},\n")
-            for i, (u, v) in enumerate(self.parser.texture_coords):
+            
+            # Use progress bar for large texture coordinate counts
+            if show_progress and len(self.parser.texture_coords) > 10000:
+                uv_iter = tqdm(enumerate(self.parser.texture_coords), total=len(self.parser.texture_coords), 
+                             desc="Writing UV coordinates", unit="UVs", leave=False)
+            else:
+                uv_iter = enumerate(self.parser.texture_coords)
+                
+            for i, (u, v) in uv_iter:
                 f.write(f"        <{u:.6f}, {v:.6f}>")
                 if i < len(self.parser.texture_coords) - 1:
                     f.write(",")
@@ -356,8 +364,15 @@ class POVGenerator:
         
         f.write(f"        {total_triangles},\n")
         
+        # Use progress bar for large triangle counts
+        if show_progress and total_triangles > 10000:
+            face_iter = tqdm(enumerate(self.parser.faces), total=len(self.parser.faces), 
+                           desc="Writing face indices", unit="faces", leave=False)
+        else:
+            face_iter = enumerate(self.parser.faces)
+        
         triangle_count = 0
-        for i, face in enumerate(self.parser.faces):
+        for i, face in face_iter:
             if len(face) >= 3:
                 # For STL files, faces are already triangles
                 if hasattr(self.parser, 'vertex_map'):  # This indicates it's an STL parser
@@ -387,8 +402,15 @@ class POVGenerator:
             f.write("\n    normal_indices {\n")
             f.write(f"        {total_triangles},\n")
             
+            # Use progress bar for large triangle counts
+            if show_progress and total_triangles > 10000:
+                normal_face_iter = tqdm(enumerate(self.parser.faces), total=len(self.parser.faces), 
+                                      desc="Writing normal indices", unit="faces", leave=False)
+            else:
+                normal_face_iter = enumerate(self.parser.faces)
+            
             triangle_count = 0
-            for i, face in enumerate(self.parser.faces):
+            for i, face in normal_face_iter:
                 if len(face) >= 3:
                     # For STL files, faces are already triangles
                     if hasattr(self.parser, 'vertex_map'):  # This indicates it's an STL parser
@@ -418,8 +440,15 @@ class POVGenerator:
             f.write("\n    uv_indices {\n")
             f.write(f"        {total_triangles},\n")
             
+            # Use progress bar for large triangle counts
+            if show_progress and total_triangles > 10000:
+                uv_face_iter = tqdm(enumerate(self.parser.faces), total=len(self.parser.faces), 
+                                  desc="Writing UV indices", unit="faces", leave=False)
+            else:
+                uv_face_iter = enumerate(self.parser.faces)
+            
             triangle_count = 0
-            for i, face in enumerate(self.parser.faces):
+            for i, face in uv_face_iter:
                 if len(face) >= 3:
                     # For STL files, faces are already triangles
                     if hasattr(self.parser, 'vertex_map'):  # This indicates it's an STL parser

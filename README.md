@@ -201,13 +201,21 @@ When using the `-v` (verbose) option, the converter shows progress bars for larg
 
 - **OBJ files**: Progress bar appears for files with >1000 lines
 - **STL files**: Progress bar appears for files with >1000 triangles
-- **POV generation**: Progress bars for files with >10,000 vertices or normals
+- **POV generation**: Progress bars for files with >10,000 vertices, normals, or triangles
+  - Writing vertices (>10,000 vertices)
+  - Writing normals (>10,000 normals)
+  - Writing UV coordinates (>10,000 UVs)
+  - Writing face indices (>10,000 triangles)
+  - Writing normal indices (>10,000 triangles)
+  - Writing UV indices (>10,000 triangles)
 
 Example output:
 ```
 Parsing STL file: large_model.stl
 Parsing ASCII STL: 100%|████████████| 50000/50000 [00:02<00:00, 25000.00lines/s]
 Writing vertices: 100%|████████████| 25000/25000 [00:01<00:00, 25000.00vertices/s]
+Writing normals: 100%|████████████| 25000/25000 [00:01<00:00, 25000.00normals/s]
+Writing face indices: 100%|████████████| 50000/50000 [00:02<00:00, 25000.00faces/s]
 ```
 
 ## Contributing
