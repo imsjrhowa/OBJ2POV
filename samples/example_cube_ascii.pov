@@ -4,24 +4,37 @@
 #version 3.7;
 
 // Image settings for square pixels
-// Render with: povray +W800 +H600 filename.pov
+// Render with: povray +W800 +H800 filename.pov
 #declare ImageWidth = 800;
-#declare ImageHeight = 600;
+#declare ImageHeight = 800;
 
 // Global settings
 global_settings {
     assumed_gamma 1.0
 }
 
-// Material definitions
-#default {
+// Default bronze texture
+#declare BronzeTexture = texture {
+    pigment {
+        color rgb <0.8, 0.5, 0.2>
+    }
+    normal {
+        bumps 0.3
+        scale 0.1
+    }
     finish {
         ambient 0.1
         diffuse 0.7
-        specular 0.2
-        roughness 0.1
+        specular 0.4
+        roughness 0.05
+        reflection 0.3
+        metallic
     }
-    pigment { color rgb <0.8, 0.8, 0.8> }
+}
+
+// Material definitions
+#default {
+    texture { BronzeTexture }
 }
 
 // Main mesh object
@@ -89,7 +102,7 @@ mesh2 {
 
 // Camera and lighting setup
 camera {
-    location <3.402, 2.041, 5.444>
+    location <0.783, 2.041, 6.372>
     look_at <0.000, 0.000, 0.000>
     angle 35.0
     right x*ImageWidth/ImageHeight  // Correct aspect ratio for square pixels
@@ -97,11 +110,11 @@ camera {
 }
 
 light_source {
-    <8.506, 7.145, 0.340>
+    <5.887, 7.145, 1.268>
     color rgb <1, 1, 1>
 }
 
 light_source {
-    <0.340, -1.021, 2.382>
+    <-2.279, -1.021, 3.310>
     color rgb <0.5, 0.5, 0.5>
 }

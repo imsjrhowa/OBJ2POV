@@ -6,12 +6,13 @@ This tool converts Wavefront OBJ files to POV-Ray format.
 Supports vertices, faces, normals, texture coordinates, and materials.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 import argparse
 import os
 import sys
 import struct
+import math
 from typing import List, Tuple, Optional, Dict, Any
 import re
 from tqdm import tqdm
@@ -239,11 +240,12 @@ class STLParser:
 class POVGenerator:
     """Generator for POV-Ray files."""
     
-    def __init__(self, parser, image_width=800, image_height=600, flip_x=False):
+    def __init__(self, parser, image_width=800, image_height=600, flip_x=False, camera_rotation=0.0):
         self.parser = parser
         self.image_width = image_width
         self.image_height = image_height
         self.flip_x = flip_x
+        self.camera_rotation = camera_rotation
         
     def generate_pov(self, output_filename: str, include_materials: bool = True, show_progress: bool = True) -> None:
         """Generate POV-Ray file from parsed OBJ data."""
@@ -520,7 +522,7 @@ class POVGenerator:
         min_z = min(v[2] for v in vertices_for_bounds)
         max_z = max(v[2] for v in vertices_for_bounds)
         
-        # Calculate object center
+        # Calculate object center (look-at point)
         center_x = (min_x + max_x) / 2
         center_y = (min_y + max_y) / 2
         center_z = (min_z + max_z) / 2
@@ -541,11 +543,38 @@ class POVGenerator:
         # Add some padding (20% extra)
         distance = (max_dimension / 2) / (fov_half_angle_rad) * 1.2
         
-        # Position camera along the diagonal for best view
-        # Use a nice 3/4 view angle
-        camera_x = center_x + distance * 0.5
-        camera_y = center_y + distance * 0.3
-        camera_z = center_z + distance * 0.8
+        # Base camera position (3/4 view angle)
+        base_camera_x = center_x + distance * 0.5
+        base_camera_y = center_y + distance * 0.3
+        base_camera_z = center_z + distance * 0.8
+        
+        # Apply camera rotation around the look-at point
+        if self.camera_rotation != 0.0:
+            # Convert rotation to radians
+            rotation_rad = self.camera_rotation * 3.14159265359 / 180
+            
+            # Calculate offset from center
+            offset_x = base_camera_x - center_x
+            offset_y = base_camera_y - center_y
+            offset_z = base_camera_z - center_z
+            
+            # Rotate around Y-axis (vertical axis) for horizontal rotation
+            # This rotates the camera around the object horizontally
+            cos_rot = math.cos(rotation_rad)
+            sin_rot = math.sin(rotation_rad)
+            
+            # Apply rotation matrix for Y-axis rotation
+            new_offset_x = offset_x * cos_rot + offset_z * sin_rot
+            new_offset_z = -offset_x * sin_rot + offset_z * cos_rot
+            
+            # Calculate new camera position
+            camera_x = center_x + new_offset_x
+            camera_y = base_camera_y  # Keep Y position the same for horizontal rotation
+            camera_z = center_z + new_offset_z
+        else:
+            camera_x = base_camera_x
+            camera_y = base_camera_y
+            camera_z = base_camera_z
         
         # Calculate light distance (1.5x camera distance for good lighting)
         light_distance = distance * 1.5
@@ -593,17 +622,20 @@ Examples:
   python obj2pov.py model.obj -W 1024 -H 768
   python obj2pov.py model.stl -W 1600 -H 1200
   python obj2pov.py model.stl --flip-x
+  python obj2pov.py model.obj --rotate-camera 45
+  python obj2pov.py model.stl --rotate-camera -90
         """
     )
     
     parser.add_argument('input_file', help='Input OBJ or STL file')
     parser.add_argument('-o', '--output', help='Output POV file (default: input_file.pov)')
-    parser.add_argument('--no-materials', action='store_true', help='Skip material definitions')
+    parser.add_argument('-no-materials', action='store_true', help='Skip material definitions')
     parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
-    parser.add_argument('-W', '--width', type=int, default=800, help='Image width for POV-Ray rendering (default: 800)')
-    parser.add_argument('-H', '--height', type=int, default=600, help='Image height for POV-Ray rendering (default: 600)')
-    parser.add_argument('--flip-x', action='store_true', help='Flip X coordinates')
-    parser.add_argument('--version', action='version', version=f'OBJ2POV {__version__}')
+    parser.add_argument('-w', '--width', type=int, default=800, help='Image width for POV-Ray rendering (default: 800)')
+    parser.add_argument('-h', '--height', type=int, default=600, help='Image height for POV-Ray rendering (default: 600)')
+    parser.add_argument('-flip-x', action='store_true', help='Flip X coordinates')
+    parser.add_argument('-rotate-camera', type=float, default=0.0, help='Rotate camera around look-at point in degrees (positive/negative)')
+    parser.add_argument('-version', action='version', version=f'OBJ2POV {__version__}')
     
     args = parser.parse_args()
     
@@ -647,7 +679,7 @@ Examples:
                 print(f"Found {len(parser.texture_coords)} texture coordinates")
         
         # Generate POV-Ray file
-        pov_generator = POVGenerator(parser, args.width, args.height, args.flip_x)
+        pov_generator = POVGenerator(parser, args.width, args.height, args.flip_x, args.rotate_camera)
         pov_generator.generate_pov(output_file, include_materials=not args.no_materials, show_progress=args.verbose)
         
         print(f"Successfully converted '{args.input_file}' to '{output_file}'")
