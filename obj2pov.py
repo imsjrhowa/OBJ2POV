@@ -240,12 +240,21 @@ class STLParser:
 class POVGenerator:
     """Generator for POV-Ray files."""
     
-    def __init__(self, parser, image_width=800, image_height=600, flip_x=False, camera_rotation=0.0):
+    def __init__(self, parser, image_width=800, image_height=600, flip_x=False, camera_rotation=0.0,
+                 radiosity=False, area_lights=False, photon_mapping=False, lighting_preset='studio',
+                 ambient_light=0.1, light_intensity=1.0, shadow_softness=0.5):
         self.parser = parser
         self.image_width = image_width
         self.image_height = image_height
         self.flip_x = flip_x
         self.camera_rotation = camera_rotation
+        self.radiosity = radiosity
+        self.area_lights = area_lights
+        self.photon_mapping = photon_mapping
+        self.lighting_preset = lighting_preset
+        self.ambient_light = ambient_light
+        self.light_intensity = light_intensity
+        self.shadow_softness = shadow_softness
         
     def generate_pov(self, output_filename: str, include_materials: bool = True, show_progress: bool = True) -> None:
         """Generate POV-Ray file from parsed OBJ data."""
@@ -268,40 +277,129 @@ class POVGenerator:
         f.write(f"// Render with: povray +W{self.image_width} +H{self.image_height} filename.pov\n")
         f.write(f"#declare ImageWidth = {self.image_width};\n")
         f.write(f"#declare ImageHeight = {self.image_height};\n\n")
+        
+        # Write global settings with advanced lighting
         f.write("// Global settings\n")
         f.write("global_settings {\n")
         f.write("    assumed_gamma 1.0\n")
+        
+        # Add radiosity settings
+        if self.radiosity:
+            f.write("    radiosity {\n")
+            f.write("        pretrace_start 0.08\n")
+            f.write("        pretrace_end 0.01\n")
+            f.write("        count 35\n")
+            f.write("        nearest_count 5\n")
+            f.write("        error_bound 0.5\n")
+            f.write("        recursion_limit 3\n")
+            f.write("        low_error_factor 0.8\n")
+            f.write("        gray_threshold 0.0\n")
+            f.write("        minimum_reuse 0.015\n")
+            f.write("        brightness 1.0\n")
+            f.write("        adc_bailout 0.01/2\n")
+            f.write("        normal on\n")
+            f.write("        media on\n")
+            f.write("    }\n")
+        
+        # Add photon mapping settings
+        if self.photon_mapping:
+            f.write("    photons {\n")
+            f.write("        spacing 0.1\n")
+            f.write("        max_trace_level 5\n")
+            f.write("        autostop 0\n")
+            f.write("        expand_thresholds 0.1, 0.1\n")
+            f.write("        media 10\n")
+            f.write("        jitter 0.4\n")
+            f.write("        count 100000\n")
+            f.write("        gather 20, 20\n")
+            f.write("    }\n")
+        
         f.write("}\n\n")
         
         # Write default bronze texture
         self._write_default_texture(f)
         
     def _write_default_texture(self, f) -> None:
-        """Write default bronze texture definition."""
-        f.write("// Default bronze texture\n")
-        f.write("#declare BronzeTexture = texture {\n")
+        """Write physically-based material definitions."""
+        f.write("// Physically-based material definitions\n")
+        
+        # Bronze material (PBR)
+        f.write("#declare BronzeMaterial = texture {\n")
         f.write("    pigment {\n")
         f.write("        color rgb <0.8, 0.5, 0.2>\n")
         f.write("    }\n")
         f.write("    normal {\n")
-        f.write("        bumps 0.3\n")
+        f.write("        bumps 0.2\n")
+        f.write("        scale 0.05\n")
+        f.write("    }\n")
+        f.write("    finish {\n")
+        f.write(f"        ambient {self.ambient_light}\n")
+        f.write("        diffuse 0.8\n")
+        f.write("        specular 0.9\n")
+        f.write("        roughness 0.1\n")
+        f.write("        reflection {\n")
+        f.write("            0.8\n")
+        f.write("            fresnel on\n")
+        f.write("        }\n")
+        f.write("        metallic 1.0\n")
+        f.write("        conserve_energy\n")
+        f.write("    }\n")
+        f.write("}\n\n")
+        
+        # Aluminum material
+        f.write("#declare AluminumMaterial = texture {\n")
+        f.write("    pigment {\n")
+        f.write("        color rgb <0.9, 0.9, 0.9>\n")
+        f.write("    }\n")
+        f.write("    normal {\n")
+        f.write("        bumps 0.1\n")
+        f.write("        scale 0.02\n")
+        f.write("    }\n")
+        f.write("    finish {\n")
+        f.write(f"        ambient {self.ambient_light}\n")
+        f.write("        diffuse 0.7\n")
+        f.write("        specular 0.95\n")
+        f.write("        roughness 0.05\n")
+        f.write("        reflection {\n")
+        f.write("            0.9\n")
+        f.write("            fresnel on\n")
+        f.write("        }\n")
+        f.write("        metallic 1.0\n")
+        f.write("        conserve_energy\n")
+        f.write("    }\n")
+        f.write("}\n\n")
+        
+        # Plastic material
+        f.write("#declare PlasticMaterial = texture {\n")
+        f.write("    pigment {\n")
+        f.write("        color rgb <0.2, 0.4, 0.8>\n")
+        f.write("    }\n")
+        f.write("    normal {\n")
+        f.write("        bumps 0.05\n")
         f.write("        scale 0.1\n")
         f.write("    }\n")
         f.write("    finish {\n")
-        f.write("        ambient 0.1\n")
-        f.write("        diffuse 0.7\n")
-        f.write("        specular 0.4\n")
-        f.write("        roughness 0.05\n")
-        f.write("        reflection 0.3\n")
-        f.write("        metallic\n")
+        f.write(f"        ambient {self.ambient_light}\n")
+        f.write("        diffuse 0.9\n")
+        f.write("        specular 0.3\n")
+        f.write("        roughness 0.2\n")
+        f.write("        reflection {\n")
+        f.write("            0.1\n")
+        f.write("            fresnel on\n")
+        f.write("        }\n")
+        f.write("        metallic 0.0\n")
+        f.write("        conserve_energy\n")
         f.write("    }\n")
         f.write("}\n\n")
+        
+        # Default material (use bronze)
+        f.write("#declare DefaultMaterial = BronzeMaterial\n\n")
         
     def _write_materials(self, f) -> None:
         """Write material definitions."""
         f.write("// Material definitions\n")
         f.write("#default {\n")
-        f.write("    texture { BronzeTexture }\n")
+        f.write("    texture { DefaultMaterial }\n")
         f.write("}\n\n")
         
     def _write_mesh(self, f, show_progress: bool = True) -> None:
@@ -582,12 +680,13 @@ class POVGenerator:
         return (camera_x, camera_y, camera_z), (center_x, center_y, center_z), 35.0, light_distance
         
     def _write_footer(self, f) -> None:
-        """Write POV-Ray file footer."""
-        f.write("// Camera and lighting setup\n")
+        """Write POV-Ray file footer with advanced lighting."""
+        f.write("// Camera and advanced lighting setup\n")
         
         # Calculate bounding box and camera position
         camera_pos, look_at, fov, light_distance = self._calculate_camera_setup()
         
+        # Write camera
         f.write("camera {\n")
         f.write(f"    location <{camera_pos[0]:.3f}, {camera_pos[1]:.3f}, {camera_pos[2]:.3f}>\n")
         f.write(f"    look_at <{look_at[0]:.3f}, {look_at[1]:.3f}, {look_at[2]:.3f}>\n")
@@ -596,16 +695,170 @@ class POVGenerator:
         f.write("    up y\n")
         f.write("}\n\n")
         
-        # Position lights relative to the object
+        # Write lighting based on preset and options
+        self._write_lighting_setup(f, camera_pos, look_at, light_distance)
+        
+    def _write_lighting_setup(self, f, camera_pos, look_at, light_distance):
+        """Write lighting setup based on preset and options."""
+        f.write("// Advanced lighting setup\n")
+        
+        if self.lighting_preset == 'studio':
+            self._write_studio_lighting(f, camera_pos, look_at, light_distance)
+        elif self.lighting_preset == 'outdoor':
+            self._write_outdoor_lighting(f, camera_pos, look_at, light_distance)
+        elif self.lighting_preset == 'dramatic':
+            self._write_dramatic_lighting(f, camera_pos, look_at, light_distance)
+        elif self.lighting_preset == 'soft':
+            self._write_soft_lighting(f, camera_pos, look_at, light_distance)
+        elif self.lighting_preset == 'architectural':
+            self._write_architectural_lighting(f, camera_pos, look_at, light_distance)
+    
+    def _write_studio_lighting(self, f, camera_pos, look_at, light_distance):
+        """Write studio lighting setup."""
+        if self.area_lights:
+            # Main key light (area light)
+            f.write("light_source {\n")
+            f.write(f"    <{camera_pos[0] + light_distance * 0.7:.3f}, {camera_pos[1] + light_distance * 0.5:.3f}, {camera_pos[2] - light_distance * 0.3:.3f}>\n")
+            f.write("    color rgb <1.0, 0.95, 0.8> * " + str(self.light_intensity) + "\n")
+            f.write("    area_light <2, 0, 0>, <0, 2, 0>, 4, 4\n")
+            f.write("    adaptive 1\n")
+            f.write("    jitter\n")
+            f.write("    circular\n")
+            f.write("    orient\n")
+            f.write("}\n\n")
+            
+            # Fill light (area light)
+            f.write("light_source {\n")
+            f.write(f"    <{camera_pos[0] - light_distance * 0.5:.3f}, {camera_pos[1] + light_distance * 0.2:.3f}, {camera_pos[2] - light_distance * 0.4:.3f}>\n")
+            f.write("    color rgb <0.8, 0.9, 1.0> * " + str(self.light_intensity * 0.6) + "\n")
+            f.write("    area_light <1.5, 0, 0>, <0, 1.5, 0>, 3, 3\n")
+            f.write("    adaptive 1\n")
+            f.write("    jitter\n")
+            f.write("    circular\n")
+            f.write("    orient\n")
+            f.write("}\n\n")
+            
+            # Rim light (area light)
+            f.write("light_source {\n")
+            f.write(f"    <{camera_pos[0] + light_distance * 0.2:.3f}, {camera_pos[1] + light_distance * 0.8:.3f}, {camera_pos[2] + light_distance * 0.6:.3f}>\n")
+            f.write("    color rgb <1.0, 0.9, 0.7> * " + str(self.light_intensity * 0.4) + "\n")
+            f.write("    area_light <1, 0, 0>, <0, 1, 0>, 2, 2\n")
+            f.write("    adaptive 1\n")
+            f.write("    jitter\n")
+            f.write("    circular\n")
+            f.write("    orient\n")
+            f.write("}\n\n")
+        else:
+            # Traditional point lights for studio
+            f.write("light_source {\n")
+            f.write(f"    <{camera_pos[0] + light_distance * 0.7:.3f}, {camera_pos[1] + light_distance * 0.5:.3f}, {camera_pos[2] - light_distance * 0.3:.3f}>\n")
+            f.write("    color rgb <1.0, 0.95, 0.8> * " + str(self.light_intensity) + "\n")
+            f.write("}\n\n")
+            
+            f.write("light_source {\n")
+            f.write(f"    <{camera_pos[0] - light_distance * 0.5:.3f}, {camera_pos[1] + light_distance * 0.2:.3f}, {camera_pos[2] - light_distance * 0.4:.3f}>\n")
+            f.write("    color rgb <0.8, 0.9, 1.0> * " + str(self.light_intensity * 0.6) + "\n")
+            f.write("}\n\n")
+    
+    def _write_outdoor_lighting(self, f, camera_pos, look_at, light_distance):
+        """Write outdoor lighting setup."""
+        # Sun light (parallel light)
         f.write("light_source {\n")
-        f.write(f"    <{camera_pos[0] + light_distance * 0.5:.3f}, {camera_pos[1] + light_distance * 0.5:.3f}, {camera_pos[2] - light_distance * 0.5:.3f}>\n")
-        f.write("    color rgb <1, 1, 1>\n")
+        f.write("    <0, 1000, 0>\n")
+        f.write("    color rgb <1.0, 0.95, 0.8> * " + str(self.light_intensity) + "\n")
+        f.write("    parallel\n")
+        f.write("    point_at <0, 0, 0>\n")
         f.write("}\n\n")
         
+        # Sky light (ambient)
         f.write("light_source {\n")
-        f.write(f"    <{camera_pos[0] - light_distance * 0.3:.3f}, {camera_pos[1] - light_distance * 0.3:.3f}, {camera_pos[2] - light_distance * 0.3:.3f}>\n")
-        f.write("    color rgb <0.5, 0.5, 0.5>\n")
-        f.write("}\n")
+        f.write("    <0, 0, 0>\n")
+        f.write("    color rgb <0.6, 0.8, 1.0> * " + str(self.light_intensity * 0.3) + "\n")
+        f.write("    parallel\n")
+        f.write("    point_at <0, -1, 0>\n")
+        f.write("}\n\n")
+    
+    def _write_dramatic_lighting(self, f, camera_pos, look_at, light_distance):
+        """Write dramatic lighting setup."""
+        if self.area_lights:
+            # Main dramatic light (large area light)
+            f.write("light_source {\n")
+            f.write(f"    <{camera_pos[0] + light_distance * 0.8:.3f}, {camera_pos[1] + light_distance * 0.9:.3f}, {camera_pos[2] - light_distance * 0.2:.3f}>\n")
+            f.write("    color rgb <1.0, 0.8, 0.6> * " + str(self.light_intensity) + "\n")
+            f.write("    area_light <3, 0, 0>, <0, 3, 0>, 6, 6\n")
+            f.write("    adaptive 1\n")
+            f.write("    jitter\n")
+            f.write("    circular\n")
+            f.write("    orient\n")
+            f.write("}\n\n")
+        else:
+            # Dramatic point light
+            f.write("light_source {\n")
+            f.write(f"    <{camera_pos[0] + light_distance * 0.8:.3f}, {camera_pos[1] + light_distance * 0.9:.3f}, {camera_pos[2] - light_distance * 0.2:.3f}>\n")
+            f.write("    color rgb <1.0, 0.8, 0.6> * " + str(self.light_intensity) + "\n")
+            f.write("}\n\n")
+    
+    def _write_soft_lighting(self, f, camera_pos, look_at, light_distance):
+        """Write soft lighting setup."""
+        if self.area_lights:
+            # Large soft key light
+            f.write("light_source {\n")
+            f.write(f"    <{camera_pos[0] + light_distance * 0.6:.3f}, {camera_pos[1] + light_distance * 0.4:.3f}, {camera_pos[2] - light_distance * 0.4:.3f}>\n")
+            f.write("    color rgb <1.0, 0.98, 0.9> * " + str(self.light_intensity) + "\n")
+            f.write("    area_light <4, 0, 0>, <0, 4, 0>, 8, 8\n")
+            f.write("    adaptive 1\n")
+            f.write("    jitter\n")
+            f.write("    circular\n")
+            f.write("    orient\n")
+            f.write("}\n\n")
+            
+            # Soft fill light
+            f.write("light_source {\n")
+            f.write(f"    <{camera_pos[0] - light_distance * 0.4:.3f}, {camera_pos[1] + light_distance * 0.3:.3f}, {camera_pos[2] - light_distance * 0.5:.3f}>\n")
+            f.write("    color rgb <0.9, 0.95, 1.0> * " + str(self.light_intensity * 0.5) + "\n")
+            f.write("    area_light <3, 0, 0>, <0, 3, 0>, 6, 6\n")
+            f.write("    adaptive 1\n")
+            f.write("    jitter\n")
+            f.write("    circular\n")
+            f.write("    orient\n")
+            f.write("}\n\n")
+        else:
+            # Soft point lights
+            f.write("light_source {\n")
+            f.write(f"    <{camera_pos[0] + light_distance * 0.6:.3f}, {camera_pos[1] + light_distance * 0.4:.3f}, {camera_pos[2] - light_distance * 0.4:.3f}>\n")
+            f.write("    color rgb <1.0, 0.98, 0.9> * " + str(self.light_intensity) + "\n")
+            f.write("}\n\n")
+            
+            f.write("light_source {\n")
+            f.write(f"    <{camera_pos[0] - light_distance * 0.4:.3f}, {camera_pos[1] + light_distance * 0.3:.3f}, {camera_pos[2] - light_distance * 0.5:.3f}>\n")
+            f.write("    color rgb <0.9, 0.95, 1.0> * " + str(self.light_intensity * 0.5) + "\n")
+            f.write("}\n\n")
+    
+    def _write_architectural_lighting(self, f, camera_pos, look_at, light_distance):
+        """Write architectural lighting setup."""
+        # Main architectural light
+        f.write("light_source {\n")
+        f.write(f"    <{camera_pos[0] + light_distance * 0.5:.3f}, {camera_pos[1] + light_distance * 0.8:.3f}, {camera_pos[2] - light_distance * 0.3:.3f}>\n")
+        f.write("    color rgb <1.0, 1.0, 0.95> * " + str(self.light_intensity) + "\n")
+        if self.area_lights:
+            f.write("    area_light <2, 0, 0>, <0, 2, 0>, 4, 4\n")
+            f.write("    adaptive 1\n")
+            f.write("    jitter\n")
+            f.write("    circular\n")
+            f.write("    orient\n")
+        f.write("}\n\n")
+        
+        # Secondary architectural light
+        f.write("light_source {\n")
+        f.write(f"    <{camera_pos[0] - light_distance * 0.3:.3f}, {camera_pos[1] + light_distance * 0.6:.3f}, {camera_pos[2] + light_distance * 0.4:.3f}>\n")
+        f.write("    color rgb <0.95, 0.98, 1.0> * " + str(self.light_intensity * 0.7) + "\n")
+        if self.area_lights:
+            f.write("    area_light <1.5, 0, 0>, <0, 1.5, 0>, 3, 3\n")
+            f.write("    adaptive 1\n")
+            f.write("    jitter\n")
+            f.write("    circular\n")
+            f.write("    orient\n")
+        f.write("}\n\n")
 
 
 def main():
@@ -615,15 +868,22 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+  # Basic conversion
   python obj2pov.py model.obj
   python obj2pov.py model.stl
-  python obj2pov.py model.obj -o output.pov
-  python obj2pov.py model.stl --no-materials
-  python obj2pov.py model.obj -W 1024 -H 768
-  python obj2pov.py model.stl -W 1600 -H 1200
-  python obj2pov.py model.stl --flip-x
-  python obj2pov.py model.obj --rotate-camera 45
-  python obj2pov.py model.stl --rotate-camera -90
+  
+  # Advanced lighting
+  python obj2pov.py model.obj --radiosity --area-lights
+  python obj2pov.py model.stl --photon-mapping --lighting-preset dramatic
+  python obj2pov.py model.obj --radiosity --area-lights --lighting-preset studio
+  
+  # Professional rendering
+  python obj2pov.py model.stl --radiosity --area-lights --photon-mapping --lighting-preset architectural
+  python obj2pov.py model.obj --radiosity --area-lights --light-intensity 1.5 --ambient-light 0.2
+  
+  # Camera and output options
+  python obj2pov.py model.obj --rotate-camera 45 -o output.pov
+  python obj2pov.py model.stl -w 1920 -h 1080 --flip-x
         """
     )
     
@@ -631,10 +891,21 @@ Examples:
     parser.add_argument('-o', '--output', help='Output POV file (default: input_file.pov)')
     parser.add_argument('-no-materials', action='store_true', help='Skip material definitions')
     parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
-    parser.add_argument('-w', '--width', type=int, default=800, help='Image width for POV-Ray rendering (default: 800)')
-    parser.add_argument('-h', '--height', type=int, default=600, help='Image height for POV-Ray rendering (default: 600)')
-    parser.add_argument('-flip-x', action='store_true', help='Flip X coordinates')
-    parser.add_argument('-rotate-camera', type=float, default=0.0, help='Rotate camera around look-at point in degrees (positive/negative)')
+    parser.add_argument('-W', '--width', type=int, default=800, help='Image width for POV-Ray rendering (default: 800)')
+    parser.add_argument('-H','--height', type=int, default=600, help='Image height for POV-Ray rendering (default: 600)')
+    parser.add_argument('--flip-x', action='store_true', help='Flip X coordinates')
+    parser.add_argument('--rotate-camera', type=float, default=0.0, help='Rotate camera around look-at point in degrees (positive/negative)')
+    
+    # Advanced Lighting Options
+    lighting_group = parser.add_argument_group('Advanced Lighting Options')
+    lighting_group.add_argument('--radiosity', action='store_true', help='Enable radiosity (global illumination) for realistic lighting')
+    lighting_group.add_argument('--area-lights', action='store_true', help='Use area lights instead of point lights for soft shadows')
+    lighting_group.add_argument('--photon-mapping', action='store_true', help='Enable photon mapping for caustics and complex light interactions')
+    lighting_group.add_argument('--lighting-preset', choices=['studio', 'outdoor', 'dramatic', 'soft', 'architectural'],                                default='studio', help='Lighting preset (default: studio)')
+    lighting_group.add_argument('--ambient-light', type=float, default=0.1, help='Ambient light intensity (0.0-1.0, default: 0.1)')
+    lighting_group.add_argument('--light-intensity', type=float, default=1.0, help='Main light intensity multiplier (default: 1.0)')
+    lighting_group.add_argument('--shadow-softness', type=float, default=0.5, help='Shadow softness for area lights (0.0-2.0, default: 0.5)')
+    
     parser.add_argument('-version', action='version', version=f'OBJ2POV {__version__}')
     
     args = parser.parse_args()
@@ -679,10 +950,24 @@ Examples:
                 print(f"Found {len(parser.texture_coords)} texture coordinates")
         
         # Generate POV-Ray file
-        pov_generator = POVGenerator(parser, args.width, args.height, args.flip_x, args.rotate_camera)
+        pov_generator = POVGenerator(
+            parser, 
+            args.width, 
+            args.height, 
+            args.flip_x, 
+            args.rotate_camera,
+            radiosity=args.radiosity,
+            area_lights=args.area_lights,
+            photon_mapping=args.photon_mapping,
+            lighting_preset=args.lighting_preset,
+            ambient_light=args.ambient_light,
+            light_intensity=args.light_intensity,
+            shadow_softness=args.shadow_softness
+        )
         pov_generator.generate_pov(output_file, include_materials=not args.no_materials, show_progress=args.verbose)
         
         print(f"Successfully converted '{args.input_file}' to '{output_file}'")
+        print("Done!")
         
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

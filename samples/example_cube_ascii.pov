@@ -4,67 +4,132 @@
 #version 3.7;
 
 // Image settings for square pixels
-// Render with: povray +W800 +H800 filename.pov
-#declare ImageWidth = 800;
-#declare ImageHeight = 800;
+// Render with: povray +W1200 +H1200 filename.pov
+#declare ImageWidth = 1200;
+#declare ImageHeight = 1200;
 
 // Global settings
 global_settings {
     assumed_gamma 1.0
+    radiosity {
+        pretrace_start 0.08
+        pretrace_end 0.01
+        count 35
+        nearest_count 5
+        error_bound 0.5
+        recursion_limit 3
+        low_error_factor 0.8
+        gray_threshold 0.0
+        minimum_reuse 0.015
+        brightness 1.0
+        adc_bailout 0.01/2
+        normal on
+        media on
+    }
 }
 
-// Default bronze texture
-#declare BronzeTexture = texture {
+// Physically-based material definitions
+#declare BronzeMaterial = texture {
     pigment {
         color rgb <0.8, 0.5, 0.2>
     }
     normal {
-        bumps 0.3
-        scale 0.1
+        bumps 0.2
+        scale 0.05
+    }
+    finish {
+        ambient 0.1
+        diffuse 0.8
+        specular 0.9
+        roughness 0.1
+        reflection {
+            0.8
+            fresnel on
+        }
+        metallic 1.0
+        conserve_energy
+    }
+}
+
+#declare AluminumMaterial = texture {
+    pigment {
+        color rgb <0.9, 0.9, 0.9>
+    }
+    normal {
+        bumps 0.1
+        scale 0.02
     }
     finish {
         ambient 0.1
         diffuse 0.7
-        specular 0.4
+        specular 0.95
         roughness 0.05
-        reflection 0.3
-        metallic
+        reflection {
+            0.9
+            fresnel on
+        }
+        metallic 1.0
+        conserve_energy
     }
 }
 
+#declare PlasticMaterial = texture {
+    pigment {
+        color rgb <0.2, 0.4, 0.8>
+    }
+    normal {
+        bumps 0.05
+        scale 0.1
+    }
+    finish {
+        ambient 0.1
+        diffuse 0.9
+        specular 0.3
+        roughness 0.2
+        reflection {
+            0.1
+            fresnel on
+        }
+        metallic 0.0
+        conserve_energy
+    }
+}
+
+#declare DefaultMaterial = BronzeMaterial
+
 // Material definitions
 #default {
-    texture { BronzeTexture }
+    texture { DefaultMaterial }
 }
 
 // Main mesh object
 mesh2 {
     vertex_vectors {
         8,
-        <-1.000000, -1.000000, 1.000000>,
         <1.000000, -1.000000, 1.000000>,
-        <1.000000, 1.000000, 1.000000>,
+        <-1.000000, -1.000000, 1.000000>,
         <-1.000000, 1.000000, 1.000000>,
-        <1.000000, -1.000000, -1.000000>,
+        <1.000000, 1.000000, 1.000000>,
         <-1.000000, -1.000000, -1.000000>,
-        <-1.000000, 1.000000, -1.000000>,
-        <1.000000, 1.000000, -1.000000>
+        <1.000000, -1.000000, -1.000000>,
+        <1.000000, 1.000000, -1.000000>,
+        <-1.000000, 1.000000, -1.000000>
     }
 
     normal_vectors {
         12,
-        <0.000000, 0.000000, 1.000000>,
-        <0.000000, 0.000000, 1.000000>,
-        <0.000000, 0.000000, -1.000000>,
-        <0.000000, 0.000000, -1.000000>,
-        <0.000000, 1.000000, 0.000000>,
-        <0.000000, 1.000000, 0.000000>,
-        <0.000000, -1.000000, 0.000000>,
-        <0.000000, -1.000000, 0.000000>,
-        <1.000000, 0.000000, 0.000000>,
-        <1.000000, 0.000000, 0.000000>,
+        <-0.000000, 0.000000, 1.000000>,
+        <-0.000000, 0.000000, 1.000000>,
+        <-0.000000, 0.000000, -1.000000>,
+        <-0.000000, 0.000000, -1.000000>,
+        <-0.000000, 1.000000, 0.000000>,
+        <-0.000000, 1.000000, 0.000000>,
+        <-0.000000, -1.000000, 0.000000>,
+        <-0.000000, -1.000000, 0.000000>,
         <-1.000000, 0.000000, 0.000000>,
-        <-1.000000, 0.000000, 0.000000>
+        <-1.000000, 0.000000, 0.000000>,
+        <1.000000, 0.000000, 0.000000>,
+        <1.000000, 0.000000, 0.000000>
     }
 
     face_indices {
@@ -100,21 +165,43 @@ mesh2 {
     }
 }
 
-// Camera and lighting setup
+// Camera and advanced lighting setup
 camera {
-    location <0.783, 2.041, 6.372>
+    location <0.225, 2.041, 6.416>
     look_at <0.000, 0.000, 0.000>
     angle 35.0
     right x*ImageWidth/ImageHeight  // Correct aspect ratio for square pixels
     up y
 }
 
+// Advanced lighting setup
 light_source {
-    <5.887, 7.145, 1.268>
-    color rgb <1, 1, 1>
+    <7.370, 7.145, 3.354>
+    color rgb <1.0, 0.95, 0.8> * 1.0
+    area_light <2, 0, 0>, <0, 2, 0>, 4, 4
+    adaptive 1
+    jitter
+    circular
+    orient
 }
 
 light_source {
-    <-2.279, -1.021, 3.310>
-    color rgb <0.5, 0.5, 0.5>
+    <-4.879, 4.083, 2.333>
+    color rgb <0.8, 0.9, 1.0> * 0.6
+    area_light <1.5, 0, 0>, <0, 1.5, 0>, 3, 3
+    adaptive 1
+    jitter
+    circular
+    orient
 }
+
+light_source {
+    <2.266, 10.207, 12.540>
+    color rgb <1.0, 0.9, 0.7> * 0.4
+    area_light <1, 0, 0>, <0, 1, 0>, 2, 2
+    adaptive 1
+    jitter
+    circular
+    orient
+}
+
