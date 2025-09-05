@@ -241,6 +241,7 @@ class POVGenerator:
     """Generator for POV-Ray files."""
     
     def __init__(self, parser, image_width=800, image_height=600, flip_x=False, camera_rotation=0.0,
+                 camera_pitch=0.0, camera_yaw=0.0, camera_roll=0.0, camera_distance=1.0,
                  radiosity=False, area_lights=False, photon_mapping=False, lighting_preset='studio',
                  ambient_light=0.1, light_intensity=1.0, shadow_softness=0.5):
         self.parser = parser
@@ -248,6 +249,10 @@ class POVGenerator:
         self.image_height = image_height
         self.flip_x = flip_x
         self.camera_rotation = camera_rotation
+        self.camera_pitch = camera_pitch
+        self.camera_yaw = -camera_yaw # STL needs yaw inverted
+        self.camera_roll = camera_roll
+        self.camera_distance = camera_distance
         self.radiosity = radiosity
         self.area_lights = area_lights
         self.photon_mapping = photon_mapping
@@ -255,6 +260,27 @@ class POVGenerator:
         self.ambient_light = ambient_light
         self.light_intensity = light_intensity
         self.shadow_softness = shadow_softness
+    
+    def print_settings(self):
+        """Print current settings for reference."""
+        print("=" * 60)
+        print("OBJ2POV Settings Summary")
+        print("=" * 60)
+        print(f"Image Size: {self.image_width}x{self.image_height}")
+        print(f"Flip X-axis: {self.flip_x}")
+        print(f"Camera Rotation: {self.camera_rotation:.1f}°")
+        print(f"Camera Pitch: {self.camera_pitch:.1f}°")
+        print(f"Camera Yaw: {self.camera_yaw:.1f}°")
+        print(f"Camera Roll: {self.camera_roll:.1f}°")
+        print(f"Camera Distance: {self.camera_distance:.1f}x")
+        print(f"Lighting Preset: {self.lighting_preset}")
+        print(f"Radiosity: {self.radiosity}")
+        print(f"Area Lights: {self.area_lights}")
+        print(f"Photon Mapping: {self.photon_mapping}")
+        print(f"Ambient Light: {self.ambient_light:.2f}")
+        print(f"Light Intensity: {self.light_intensity:.2f}")
+        print(f"Shadow Softness: {self.shadow_softness:.2f}")
+        print("=" * 60)
         
     def generate_pov(self, output_filename: str, include_materials: bool = True, show_progress: bool = True) -> None:
         """Generate POV-Ray file from parsed OBJ data."""
@@ -651,7 +677,7 @@ class POVGenerator:
         
         # Base camera position (looking down from above)
         base_camera_x = center_x
-        base_camera_y = center_y + distance
+        base_camera_y = center_y + distance * self.camera_distance 
         base_camera_z = center_z 
         
         # Apply camera rotation around the look-at point
@@ -699,6 +725,12 @@ class POVGenerator:
         f.write(f"    location <{camera_pos[0]:.3f}, {camera_pos[1]:.3f}, {camera_pos[2]:.3f}>\n")
         f.write(f"    look_at <{look_at[0]:.3f}, {look_at[1]:.3f}, {look_at[2]:.3f}>\n")
         f.write(f"    angle {fov:.1f}\n")
+        
+        # Apply camera orientation (pitch, roll, yaw)
+        f.write("    rotate <")
+        f.write(f"{self.camera_pitch:.1f}, {self.camera_roll:.1f}, {self.camera_yaw:.1f}")
+        f.write(">  // pitch, roll, yaw\n")
+        
         f.write("    right x*ImageWidth/ImageHeight  // Correct aspect ratio for square pixels\n")
         f.write("    up y\n")
         f.write("}\n\n")
@@ -706,9 +738,53 @@ class POVGenerator:
         # Write lighting based on preset and options
         self._write_lighting_setup(f, camera_pos, look_at, light_distance)
         
+    def _rotate_light_position(self, light_pos, look_at):
+        """Apply camera rotation to light position."""
+        if self.camera_pitch == 0.0 and self.camera_yaw == 0.0 and self.camera_roll == 0.0:
+            return light_pos
+        
+        # Convert degrees to radians
+        pitch_rad = math.radians(self.camera_pitch)
+        yaw_rad = math.radians(self.camera_yaw)
+        roll_rad = math.radians(self.camera_roll)
+        
+        # Calculate offset from look_at point
+        offset_x = light_pos[0] - look_at[0]
+        offset_y = light_pos[1] - look_at[1]
+        offset_z = light_pos[2] - look_at[2]
+        
+        # Apply rotations in order: pitch (X), roll (Y), yaw (Z)
+        # Pitch rotation around X-axis
+        cos_pitch = math.cos(pitch_rad)
+        sin_pitch = math.sin(pitch_rad)
+        new_y = offset_y * cos_pitch - offset_z * sin_pitch
+        new_z = offset_y * sin_pitch + offset_z * cos_pitch
+        offset_y, offset_z = new_y, new_z
+        
+        # Roll rotation around Y-axis
+        cos_roll = math.cos(roll_rad)
+        sin_roll = math.sin(roll_rad)
+        new_x = offset_x * cos_roll + offset_z * sin_roll
+        new_z = -offset_x * sin_roll + offset_z * cos_roll
+        offset_x, offset_z = new_x, new_z
+        
+        # Yaw rotation around Z-axis
+        cos_yaw = math.cos(yaw_rad)
+        sin_yaw = math.sin(yaw_rad)
+        new_x = offset_x * cos_yaw - offset_y * sin_yaw
+        new_y = offset_x * sin_yaw + offset_y * cos_yaw
+        offset_x, offset_y = new_x, new_y
+        
+        # Return rotated position
+        return (look_at[0] + offset_x, look_at[1] + offset_y, look_at[2] + offset_z)
+    
     def _write_lighting_setup(self, f, camera_pos, look_at, light_distance):
         """Write lighting setup based on preset and options."""
         f.write("// Advanced lighting setup\n")
+        
+        # Apply camera rotation to lighting if needed
+        if self.camera_pitch != 0.0 or self.camera_yaw != 0.0 or self.camera_roll != 0.0:
+            f.write("// Lights rotated with camera\n")
         
         if self.lighting_preset == 'studio':
             self._write_studio_lighting(f, camera_pos, look_at, light_distance)
@@ -725,8 +801,10 @@ class POVGenerator:
         """Write studio lighting setup."""
         if self.area_lights:
             # Main key light (area light)
+            key_light_pos = (camera_pos[0] + light_distance * 0.7, camera_pos[1] + light_distance * 0.5, camera_pos[2] - light_distance * 0.3)
+            rotated_key_pos = self._rotate_light_position(key_light_pos, look_at)
             f.write("light_source {\n")
-            f.write(f"    <{camera_pos[0] + light_distance * 0.7:.3f}, {camera_pos[1] + light_distance * 0.5:.3f}, {camera_pos[2] - light_distance * 0.3:.3f}>\n")
+            f.write(f"    <{rotated_key_pos[0]:.3f}, {rotated_key_pos[1]:.3f}, {rotated_key_pos[2]:.3f}>\n")
             f.write("    color rgb <1.0, 0.95, 0.8> * " + str(self.light_intensity) + "\n")
             f.write("    area_light <2, 0, 0>, <0, 2, 0>, 4, 4\n")
             f.write("    adaptive 1\n")
@@ -736,8 +814,10 @@ class POVGenerator:
             f.write("}\n\n")
             
             # Fill light (area light)
+            fill_light_pos = (camera_pos[0] - light_distance * 0.5, camera_pos[1] + light_distance * 0.2, camera_pos[2] - light_distance * 0.4)
+            rotated_fill_pos = self._rotate_light_position(fill_light_pos, look_at)
             f.write("light_source {\n")
-            f.write(f"    <{camera_pos[0] - light_distance * 0.5:.3f}, {camera_pos[1] + light_distance * 0.2:.3f}, {camera_pos[2] - light_distance * 0.4:.3f}>\n")
+            f.write(f"    <{rotated_fill_pos[0]:.3f}, {rotated_fill_pos[1]:.3f}, {rotated_fill_pos[2]:.3f}>\n")
             f.write("    color rgb <0.8, 0.9, 1.0> * " + str(self.light_intensity * 0.6) + "\n")
             f.write("    area_light <1.5, 0, 0>, <0, 1.5, 0>, 3, 3\n")
             f.write("    adaptive 1\n")
@@ -747,8 +827,10 @@ class POVGenerator:
             f.write("}\n\n")
             
             # Rim light (area light)
+            rim_light_pos = (camera_pos[0] + light_distance * 0.2, camera_pos[1] + light_distance * 0.8, camera_pos[2] + light_distance * 0.6)
+            rotated_rim_pos = self._rotate_light_position(rim_light_pos, look_at)
             f.write("light_source {\n")
-            f.write(f"    <{camera_pos[0] + light_distance * 0.2:.3f}, {camera_pos[1] + light_distance * 0.8:.3f}, {camera_pos[2] + light_distance * 0.6:.3f}>\n")
+            f.write(f"    <{rotated_rim_pos[0]:.3f}, {rotated_rim_pos[1]:.3f}, {rotated_rim_pos[2]:.3f}>\n")
             f.write("    color rgb <1.0, 0.9, 0.7> * " + str(self.light_intensity * 0.4) + "\n")
             f.write("    area_light <1, 0, 0>, <0, 1, 0>, 2, 2\n")
             f.write("    adaptive 1\n")
@@ -758,13 +840,17 @@ class POVGenerator:
             f.write("}\n\n")
         else:
             # Traditional point lights for studio
+            key_light_pos = (camera_pos[0] + light_distance * 0.7, camera_pos[1] + light_distance * 0.5, camera_pos[2] - light_distance * 0.3)
+            rotated_key_pos = self._rotate_light_position(key_light_pos, look_at)
             f.write("light_source {\n")
-            f.write(f"    <{camera_pos[0] + light_distance * 0.7:.3f}, {camera_pos[1] + light_distance * 0.5:.3f}, {camera_pos[2] - light_distance * 0.3:.3f}>\n")
+            f.write(f"    <{rotated_key_pos[0]:.3f}, {rotated_key_pos[1]:.3f}, {rotated_key_pos[2]:.3f}>\n")
             f.write("    color rgb <1.0, 0.95, 0.8> * " + str(self.light_intensity) + "\n")
             f.write("}\n\n")
             
+            fill_light_pos = (camera_pos[0] - light_distance * 0.5, camera_pos[1] + light_distance * 0.2, camera_pos[2] - light_distance * 0.4)
+            rotated_fill_pos = self._rotate_light_position(fill_light_pos, look_at)
             f.write("light_source {\n")
-            f.write(f"    <{camera_pos[0] - light_distance * 0.5:.3f}, {camera_pos[1] + light_distance * 0.2:.3f}, {camera_pos[2] - light_distance * 0.4:.3f}>\n")
+            f.write(f"    <{rotated_fill_pos[0]:.3f}, {rotated_fill_pos[1]:.3f}, {rotated_fill_pos[2]:.3f}>\n")
             f.write("    color rgb <0.8, 0.9, 1.0> * " + str(self.light_intensity * 0.6) + "\n")
             f.write("}\n\n")
     
@@ -892,6 +978,11 @@ Examples:
   # Camera and output options
   python obj2pov.py model.obj --rotate-camera 45 -o output.pov
   python obj2pov.py model.stl -w 1920 -h 1080 --flip-x
+  
+  # Camera orientation control
+  python obj2pov.py model.obj --camera-pitch -30 --camera-yaw 45
+  python obj2pov.py model.stl --camera-roll 15 --camera-pitch -20
+  python obj2pov.py model.obj --camera-distance 1.2 --camera-pitch -30 --camera-yaw 45
         """
     )
     
@@ -903,6 +994,13 @@ Examples:
     parser.add_argument('-H','--height', type=int, default=600, help='Image height for POV-Ray rendering (default: 600)')
     parser.add_argument('--flip-x', action='store_true', help='Flip X coordinates')
     parser.add_argument('--rotate-camera', type=float, default=0.0, help='Rotate camera around look-at point in degrees (positive/negative)')
+    
+    # Camera Orientation Options
+    camera_group = parser.add_argument_group('Camera Orientation Options')
+    camera_group.add_argument('--camera-pitch', type=float, default=0.0, help='Camera pitch (up/down) in degrees (default: 0.0)')
+    camera_group.add_argument('--camera-yaw', type=float, default=0.0, help='Camera yaw (left/right) in degrees (default: 0.0)')
+    camera_group.add_argument('--camera-roll', type=float, default=0.0, help='Camera roll (tilt) in degrees (default: 0.0)')
+    camera_group.add_argument('--camera-distance', type=float, default=1.0, help='Camera distance from look-at point (default: 1.0)')
     
     # Advanced Lighting Options
     lighting_group = parser.add_argument_group('Advanced Lighting Options')
@@ -949,14 +1047,8 @@ Examples:
         else:
             print(f"Error: Unsupported file format '{file_ext}'. Supported formats: .obj, .stl", file=sys.stderr)
             sys.exit(1)
-        
-        if args.verbose:
-            print(f"Found {len(parser.vertices)} vertices")
-            print(f"Found {len(parser.faces)} faces")
-            print(f"Found {len(parser.normals)} normals")
-            if hasattr(parser, 'texture_coords'):
-                print(f"Found {len(parser.texture_coords)} texture coordinates")
-        
+
+
         # Generate POV-Ray file
         pov_generator = POVGenerator(
             parser, 
@@ -964,6 +1056,10 @@ Examples:
             args.height, 
             args.flip_x, 
             args.rotate_camera,
+            camera_pitch=args.camera_pitch,
+            camera_yaw=args.camera_yaw,
+            camera_roll=args.camera_roll,
+            camera_distance=args.camera_distance,
             radiosity=args.radiosity,
             area_lights=args.area_lights,
             photon_mapping=args.photon_mapping,
@@ -972,6 +1068,18 @@ Examples:
             light_intensity=args.light_intensity,
             shadow_softness=args.shadow_softness
         )
+        
+        # Print current settings for reference
+        pov_generator.print_settings()
+        
+        if args.verbose:
+            print(f"Found {len(parser.vertices)} vertices")
+            print(f"Found {len(parser.faces)} faces")
+            print(f"Found {len(parser.normals)} normals")
+            if hasattr(parser, 'texture_coords'):
+                print(f"Found {len(parser.texture_coords)} texture coordinates")
+            print("=" * 60)
+                    
         pov_generator.generate_pov(output_file, include_materials=not args.no_materials, show_progress=args.verbose)
         
         print(f"Successfully converted '{args.input_file}' to '{output_file}'")
