@@ -426,6 +426,10 @@ class POVGenerator:
             # Apply X coordinate flip if requested
             if self.flip_x:
                 x = -x
+
+            # base needs y inverted.
+            y = -y
+
             f.write(f"        <{x:.6f}, {y:.6f}, {z:.6f}>")
             if i < len(self.parser.vertices) - 1:
                 f.write(",")
@@ -448,9 +452,13 @@ class POVGenerator:
                 # POV-Ray doesn't allow zero-length normals, use <1, 0, 0> as default
                 if x == 0.0 and y == 0.0 and z == 0.0:
                     x, y, z = 1.0, 0.0, 0.0
+
                 # Apply X coordinate flip to normals if requested
                 if self.flip_x:
                     x = -x
+                # base needs y inverted.
+                y = -y
+
                 f.write(f"        <{x:.6f}, {y:.6f}, {z:.6f}>")
                 if i < len(self.parser.normals) - 1:
                     f.write(",")
@@ -611,7 +619,7 @@ class POVGenerator:
         # Calculate bounding box, applying X flip if requested
         vertices_for_bounds = self.parser.vertices
         if self.flip_x:
-            vertices_for_bounds = [(-v[0], v[1], v[2]) for v in self.parser.vertices]
+            vertices_for_bounds = [(-v[0], -v[1], v[2]) for v in self.parser.vertices]
         
         min_x = min(v[0] for v in vertices_for_bounds)
         max_x = max(v[0] for v in vertices_for_bounds)
@@ -641,10 +649,10 @@ class POVGenerator:
         # Add some padding (20% extra)
         distance = (max_dimension / 2) / (fov_half_angle_rad) * 1.2
         
-        # Base camera position (3/4 view angle)
-        base_camera_x = center_x + distance * 0.5
-        base_camera_y = center_y + distance * 0.3
-        base_camera_z = center_z + distance * 0.8
+        # Base camera position (looking down from above)
+        base_camera_x = center_x
+        base_camera_y = center_y + distance
+        base_camera_z = center_z 
         
         # Apply camera rotation around the look-at point
         if self.camera_rotation != 0.0:
