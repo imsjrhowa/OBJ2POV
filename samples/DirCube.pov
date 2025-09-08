@@ -17501,19 +17501,20 @@ camera {
     location <6.500, 161.131, 10.500>
     look_at <6.500, -17.500, 10.500>
     angle 35.0
-    rotate <0.0, 0.0, -0.0>  // pitch, roll, yaw
+    rotate <45.0, 0.0, -0.0>  // pitch, roll, yaw
     right x*ImageWidth/ImageHeight  // Correct aspect ratio for square pixels
     up y
 }
 
 // Advanced lighting setup
+// Lights rotated with camera
 light_source {
-    <81.525, 214.720, -21.654>
+    <81.525, 169.440, 151.968>
     color rgb <1.0, 0.95, 0.8> * 1.0
 }
 
 light_source {
-    <-47.089, 182.566, -32.371>
+    <-47.089, 154.283, 121.654>
     color rgb <0.8, 0.9, 1.0> * 0.6
 }
 
